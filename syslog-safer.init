@@ -1,0 +1,65 @@
+#! /bin/sh
+
+# init file for syslog-safer
+# Copyright (C) SINA <zhiyong1@staff.sina.com.cn>
+
+# chkconfig: 345 99 20
+# description: syslog-safer service
+# processname: syslog-safer
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/syslog-safer ]; then
+    . /etc/sysconfig/syslog-safer
+fi
+
+pidfile=${SYSLOGSAFER_PID-/var/log/syslog-safer.pid}
+notifyf=${NOTIFYF-/var/log/syslog-safer.notify}
+source=${SOURCE-/dev/log}
+dest=${DEST-/dev/xlog}
+proto=${PROTO-dgram}
+buffer=${BUFFER-128M}
+syslogsafer=${SYSLOGSAFER-/usr/sbin/syslog-safer}
+
+prog=syslog-safer
+RETVAL=0
+
+start() {
+	echo -n $"Starting $prog: "
+
+	daemon --pidfile=${pidfile} ${syslogsafer} -s $source -d $dest -t $proto \
+                       -p $pidfile -n $notifyf -b $buffer -D
+    RETVAL=$?
+	echo
+    return $RETVAL
+}
+
+stop() {
+	echo -n $"Shutting down $prog: "
+	killproc -p ${pidfile} -d 30 $syslogsafer
+    RETVAL=$?
+	echo
+}
+
+case "$1" in
+    start)
+      start
+	  ;;
+    stop)
+      stop
+	 ;;
+    restart)
+	  stop
+	  start
+	  ;;
+    status)
+      status -p ${pidfile} $syslogsafer
+      RETVAL=$?
+	  ;;
+    *)
+	  echo $"Usage: $0 {start|stop|restart|status}"
+	  RETVAL=1
+esac
+
+exit $RETVAL
