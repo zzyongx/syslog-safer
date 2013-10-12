@@ -26,6 +26,9 @@ OBJS    = syslog-safer.o ringbuffer.o
 syslog-safer: $(OBJS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
+logger: logger.o
+	$(CXX) $(CFLAGS) -o $@ logger.o $(LDFLAGS)
+
 %.o:%.cc
 	$(CXX) -o $@ $(WARN) $(CFLAGS) $(PREDEF) -c $<
 

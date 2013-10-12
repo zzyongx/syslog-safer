@@ -5,7 +5,8 @@
 #include <time.h>
 #include <ringbuffer.h>
 
-RingBuffer::RingBuffer(size_t size, bool verbose, const char *notifyf)
+RingBuffer::RingBuffer(size_t size, bool verbose,
+        const char *notifyf, bool readBorder)
 {
     int eno = pthread_mutex_init(&mutex_, 0);
     if (eno != 0) throw eno;
@@ -21,6 +22,7 @@ RingBuffer::RingBuffer(size_t size, bool verbose, const char *notifyf)
     verbose_ = verbose;
 
     notifyf_ = notifyf;
+    readBorder_ = readBorder;
 }
 
 RingBuffer::~RingBuffer()
@@ -29,6 +31,10 @@ RingBuffer::~RingBuffer()
     pthread_cond_destroy(&cond_);
     free(buffer_);
 }
+
+/* ring deque <-[][]<-
+ * raw buffer ->[][]->
+ */
 
 bool RingBuffer::ensureSpace(size_t n, bool *droped)
 {
@@ -41,12 +47,8 @@ bool RingBuffer::ensureSpace(size_t n, bool *droped)
             hasSpace = true;
         } else {
             std::pair<size_t, size_t> range;
-            if (qlen == 1) {
-                range = queue_.front();
-            } else {
-                range.first  = queue_.front().first;
-                range.second = queue_.back().second;
-            }
+            range.first  = queue_.front().first;
+            range.second = queue_.back().second;
 
             size_t used = (range.second > range.first) ?
                 range.second - range.first :
@@ -70,23 +72,26 @@ size_t RingBuffer::write(const char *buffer, size_t n)
     bool droped;
     ensureSpace(n, &droped);
 
+    size_t first, second;
+
     size_t qlen = queue_.size();
     if (qlen == 0) {
-        queue_.push_back(std::make_pair(0, n));
+        first  = 0;
+        second = n;
         memcpy(buffer_, buffer, n);
     } else {
         std::pair<size_t, size_t> range = queue_.back();
 
-        size_t first = range.second;
-        size_t second = (first + n) % size_;
+        first = range.second;
+        second = (first + n) % size_;
         if (first <= second) {
             memcpy(buffer_ + first, buffer, n);
         } else {
             memcpy(buffer_ + first, buffer, size_ - first);
             memcpy(buffer_, buffer + (size_ - first), second);
         }
-        queue_.push_back(std::make_pair(first, second));
     }
+    queue_.push_back(std::make_pair(first, second));
 
     pthread_mutex_unlock(&mutex_);
 
@@ -126,6 +131,8 @@ size_t RingBuffer::read(char *buffer, size_t n)
             }
         }
         queue_.pop_front();
+
+        if (readBorder_) break;
     }
 
     pthread_mutex_unlock(&mutex_);

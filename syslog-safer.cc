@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
     signal(SIGTERM, sigHandler);
 
-    RingBuffer rbuffer(config.bsize, config.verbose, config.notifyf);
+    RingBuffer rbuffer(config.bsize, config.verbose, config.notifyf, !config.stream);
     LogReader<RingBuffer> logr(config.source, &rbuffer, config.stream);
     LogWriter<RingBuffer> logw(config.dest, &rbuffer, config.stream);
 

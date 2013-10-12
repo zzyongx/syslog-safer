@@ -4,6 +4,8 @@ use warnings;
 use strict;
 use Sys::Syslog qw(:DEFAULT);
 
+# perl's syslog has bug, may lose leading domain on el5
+
 my ($facility, $priority) = getopt();
 
 openlog("", "", $facility);
